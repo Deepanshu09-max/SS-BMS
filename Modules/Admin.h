@@ -158,6 +158,9 @@ int addEmployee(int connectionFD)
         printf("Error in adding employee!\n");
         return 0;
     }
+    else {
+        printf("Employee Added Succesfully \n");
+    }
     
     close(file);
     return 1;
@@ -168,7 +171,7 @@ void modifyCE(int connectionFD, int modifyChoice)
 {
     if(modifyChoice == 1)
     {
-        printf("Admin choose 1\n");
+        printf("Admin choose Customer \n");
         int file = open(CUSPATH, O_CREAT | O_RDWR , 0644);
         if(file == -1)
         {
@@ -368,13 +371,13 @@ void manageRole(int connectionFD)
             
             if(choice == 1)
             {
-                printf("Admin made %d manager\n", id);
+                printf("Admin made %d id manager\n", id);
                 emp.role = 0;            
                 write(file, &emp, sizeof(emp));
             }
             else if(choice == 2)
             {
-                printf("Admin made %d employee\n", id);
+                printf("Admin made %d id employee\n", id);
                 emp.role = 1;
                 write(file, &emp, sizeof(emp));
             }
