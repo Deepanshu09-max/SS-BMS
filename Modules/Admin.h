@@ -30,7 +30,7 @@ label1:
         bzero(writeBuffer, sizeof(writeBuffer));
         bzero(readBuffer, sizeof(readBuffer));
         strcpy(writeBuffer, "\nLogin Successfully^");
-        write(connectionFD, writeBuffer, sizeof(writeBuffer));
+        write(connectionFD, writeBuffer, strlen(writeBuffer));
         read(connectionFD, readBuffer, sizeof(readBuffer));
     }
     else
@@ -61,7 +61,7 @@ label1:
                     bzero(writeBuffer, sizeof(writeBuffer));
                     bzero(readBuffer, sizeof(readBuffer));
                     strcpy(writeBuffer, "Employee successfully added\n^");
-                    write(connectionFD, writeBuffer, sizeof(writeBuffer));
+                    write(connectionFD, writeBuffer, strlen(writeBuffer));
                     read(connectionFD, readBuffer, sizeof(readBuffer));
                 }
                 break;
