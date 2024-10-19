@@ -180,7 +180,7 @@ int loginCustomer(int connectionFD, int accountNumber, char *password) {
     while(read(file, &customer, sizeof(customer)) != 0)
     {
         if (customer.accountNumber == accountNumber && strcmp(customer.password, crypt(password, HASHKEY)) == 0 && customer.activeStatus == 1) {
-            printf("Customer whose acc no.: %d loggedIn\n", accountNumber);
+            printf("Customer with acc no.: %d loggedIn\n", accountNumber);
             close(file);
             return 1;
         }
@@ -729,11 +729,22 @@ int changePassword(int connectionFD, int accountNumber){
 }
 
 // ======================= Logout =======================
-void logout(int connectionFD){
+void logout(int connectionFD) {
     bzero(writeBuffer, sizeof(writeBuffer));
     strcpy(writeBuffer, "^");
-    write(connectionFD, writeBuffer, sizeof(writeBuffer));
+
+    // Send logout signal and check for errors
+    if (write(connectionFD, writeBuffer, sizeof(writeBuffer)) < 0) {
+        perror("Error sending logout signal");
+        return;
+    }
 
     bzero(readBuffer, sizeof(readBuffer));
-    read(connectionFD, readBuffer, sizeof(readBuffer));
+    if (read(connectionFD, readBuffer, sizeof(readBuffer)) < 0) {
+        perror("Error reading acknowledgment from client");
+        return;
+    }
+
+    printf("Client successfully logged out.\n");
 }
+
