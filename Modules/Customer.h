@@ -8,9 +8,9 @@ void transferFunds(int connectionFD, int accountNumber, int destAcc, float amt);
 void addFeedback(int connectionFD);
 void transactionHistory(int connectionFD, int accountNumber);
 int changePassword(int connectionFD, int accountNumber);
-void logout(int connectionFD);
+void logout(int connectionFD, int id);
 
-int writeBytes, readBytes, key, semID;
+int writeBytes, readBytes, key, loginOffset;
 char readBuffer[4096], writeBuffer[4096];
 
 void customerMenu(int connectionFD){
@@ -145,7 +145,7 @@ label1:
                             case 9:
                                 // Logout
                                 printf("%d logged out!\n", accountNumber);
-                                logout(connectionFD);
+                                logout(connectionFD, accountNumber);
                                 return;
                             default:
                                 write(connectionFD, "Invalid Choice from customer menu\n", sizeof("Invalid Choice from customer menu\n"));                                
@@ -176,15 +176,42 @@ int loginCustomer(int connectionFD, int accountNumber, char *password) {
         return 0;
     }
 
+    sema = initializeSemaphore(accountNumber);
+
+    setupSignalHandlers();
+
+    if (sem_trywait(sema) == -1) {
+        if (errno == EAGAIN) {
+            printf("Customer with account number %d is already logged in!\n", accountNumber);
+        } else {
+            perror("sem_trywait failed");
+        }
+        close(file);
+        return 0;
+    }
+
     lseek(file, 0, SEEK_SET);
     while(read(file, &customer, sizeof(customer)) != 0)
     {
         if (customer.accountNumber == accountNumber && strcmp(customer.password, crypt(password, HASHKEY)) == 0 && customer.activeStatus == 1) {
-            printf("Customer with acc no.: %d loggedIn\n", accountNumber);
+            printf("Customer whose acc no.: %d loggedIn\n", accountNumber);
             close(file);
             return 1;
         }
     }
+
+    // sem_post(sema);
+
+    snprintf(semName, 50, "/sem_%d", accountNumber);
+
+    sem_t *sema = sem_open(semName, 0);
+    if (sema != SEM_FAILED) {
+        sem_post(sema);
+        sem_close(sema); 
+        sem_unlink(semName);    
+    }
+
+    close(file);
     return 0;
 }
 
@@ -271,7 +298,7 @@ void depositMoney(int connectionFD, int accountNumber){
 
             bzero(readBuffer, sizeof(readBuffer));
             bzero(writeBuffer, sizeof(writeBuffer));
-            sprintf(writeBuffer, "Deposit successful! New balance: %.2f^", customer.balance);
+            sprintf(writeBuffer, "Deposit successful!^");
             write(connectionFD, writeBuffer, sizeof(writeBuffer));
             read(connectionFD, readBuffer, sizeof(readBuffer));
         }
@@ -728,23 +755,68 @@ int changePassword(int connectionFD, int accountNumber){
     return 1;
 }
 
-// ======================= Logout =======================
-void logout(int connectionFD) {
+======================= Logout =======================
+void logout(int connectionFD, int id){
+
+    struct session s;
+
+    int fd = open("../Data/temp.txt", O_CREAT | O_RDWR, 0644);
+    int fd1 = open("../Data/login.txt", O_RDONLY);
+
+    lseek(fd, 0, SEEK_SET);
+    lseek(fd1, 0, SEEK_SET);
+    while (read(fd1, &s, sizeof(s)) != 0)
+    {
+        if(s.id != id)
+        {
+            write(fd, &s, sizeof(s));
+        }
+    }
+    
+    close(fd);
+    close(fd1);
+    remove("../Data/login.txt");
+    rename("../Data/temp.txt", "../Data/login.txt");
+
+    snprintf(semName, 50, "/sem_%d", id);
+
+    sem_t *sema = sem_open(semName, 0);
+    if (sema != SEM_FAILED) {
+        sem_post(sema);
+        sem_close(sema); 
+        sem_unlink(semName);    
+    }
+
     bzero(writeBuffer, sizeof(writeBuffer));
     strcpy(writeBuffer, "^");
-
-    // Send logout signal and check for errors
-    if (write(connectionFD, writeBuffer, sizeof(writeBuffer)) < 0) {
-        perror("Error sending logout signal");
-        return;
-    }
+    write(connectionFD, writeBuffer, sizeof(writeBuffer));
 
     bzero(readBuffer, sizeof(readBuffer));
-    if (read(connectionFD, readBuffer, sizeof(readBuffer)) < 0) {
-        perror("Error reading acknowledgment from client");
-        return;
-    }
-
-    printf("Client successfully logged out.\n");
+    read(connectionFD, readBuffer, sizeof(readBuffer));
 }
 
+// ======================= Session Check ==================
+// int sessionCheck(int id)
+// {
+//     struct session s;
+//     int fd = open("../Data/login.txt", O_CREAT | O_RDWR, 0644);
+//     if(fd == -1)
+//     {
+//         printf("Unable to open login.txt file\n");
+//         return 0;
+//     }
+
+//     while (read(fd, &s, sizeof(s)) != 0)
+//     {
+//         if(s.id == id)
+//         {
+//             close(fd);
+//             return 0;
+//         }
+//     }
+//     lseek(fd, 0, SEEK_END);
+//     s.id = id;
+//     write(fd, &s, sizeof(s));
+//     close(fd);
+//     return 1;
+// }

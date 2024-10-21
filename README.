@@ -1,0 +1,13 @@
+To run 
+// Compile
+// gcc server.c -o server -L/lib/x86_64-linux-gnu/libcrypt.so -lcrypt -pthread
+
+// run server 
+./server.o
+
+//new terminal, run client 
+//compile client 
+gcc client.c -o client.o
+
+//run client
+./client.o

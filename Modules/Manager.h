@@ -32,6 +32,13 @@ label1:
     read(connectionFD, readBuffer, sizeof(readBuffer));
     strcpy(password, readBuffer);
 
+
+    // if(!sessionCheck(mngID))
+    // {
+    //     printf("Manager %d already logged in!\n", mngID);
+    //     return;
+    // }
+
     if(loginManager(connectionFD, mngID, password))
     {
         bzero(writeBuffer, sizeof(writeBuffer));
@@ -40,7 +47,7 @@ label1:
         strcpy(writeBuffer, "\nLogin Successfully^");
         write(connectionFD, writeBuffer, sizeof(writeBuffer));
         read(connectionFD, readBuffer, sizeof(readBuffer));
-        
+
         while(1)
         {
             bzero(writeBuffer, sizeof(writeBuffer));
@@ -88,11 +95,12 @@ label1:
                 case 5:
                     // Logout
                     printf("Manager Logged out!\n");
+                    logout(connectionFD, mngID);
                     return ;
                 case 6:
                     // Exit
                     printf("Manager exited\n");
-                    exitClient(connectionFD);
+                    exitClient(connectionFD, mngID);
                     return;
                 default:
                     printf("Invalid choice\n");
@@ -121,6 +129,20 @@ int loginManager(int connectionFD, int mngID, char *password)
         return 0;
     }
 
+    sema = initializeSemaphore(mngID);
+
+    setupSignalHandlers();
+
+    if (sem_trywait(sema) == -1) {
+        if (errno == EAGAIN) {
+            printf("Manager %d is already logged in!\n", mngID);
+        } else {
+            perror("sem_trywait failed");
+        }
+        close(file);
+        return 0;
+    }
+
     lseek(file, 0, SEEK_SET);
     while(read(file, &mng, sizeof(mng)) != 0)
     {
@@ -129,6 +151,20 @@ int loginManager(int connectionFD, int mngID, char *password)
             return 1;
         }
     }
+
+    // sem_post(sema);
+
+    snprintf(semName, 50, "/sem_%d", mngID);
+
+    sem_t *sema = sem_open(semName, 0);
+    if (sema != SEM_FAILED) {
+        sem_post(sema);
+        sem_close(sema); 
+        sem_unlink(semName);    
+    }
+
+
+    close(file);
     return 0;
 }
 

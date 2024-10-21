@@ -31,7 +31,8 @@ label1:
     bzero(readBuffer, sizeof(readBuffer));
     read(connectionFD, readBuffer, sizeof(readBuffer));
     strcpy(password, readBuffer);
-    
+
+
     if(loginEmployee(connectionFD, empID, password))
     {
         bzero(writeBuffer, sizeof(writeBuffer));
@@ -104,11 +105,12 @@ label1:
                 case 7:
                     // Logout
                     printf("Employee ID: %d Logged Out!\n", empID);
+                    logout(connectionFD, empID);
                     return ;
                 case 8:
                     // Exit
                     printf("Employee ID: %d Exited!\n", empID);
-                    exitClient(connectionFD);
+                    exitClient(connectionFD, empID);
                 default:
                     printf("Invalid choice\n");                
             }
@@ -131,8 +133,17 @@ int loginEmployee(int connectionFD, int empID, char *password)
     struct Employee employee;
     int file = open(EMPPATH, O_CREAT | O_RDWR, 0644);
 
-    if (file == -1) {
-        printf("Error opening file!\n");
+    sema = initializeSemaphore(empID);
+
+    setupSignalHandlers();
+
+    if (sem_trywait(sema) == -1) {
+        if (errno == EAGAIN) {
+            printf("Employee %d is already logged in!\n", empID);
+        } else {
+            perror("sem_trywait failed");
+        }
+        close(file);
         return 0;
     }
 
@@ -144,6 +155,16 @@ int loginEmployee(int connectionFD, int empID, char *password)
             return 1;
         }
     }
+    snprintf(semName, 50, "/sem_%d", empID);
+
+    sem_t *sema = sem_open(semName, 0);
+    if (sema != SEM_FAILED) {
+        sem_post(sema);
+        sem_close(sema); 
+        sem_unlink(semName);    
+    }
+
+    close(file);
     return 0;   
 }
 

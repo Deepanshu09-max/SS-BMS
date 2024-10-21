@@ -31,9 +31,6 @@ struct Customer {
     char customerName[20];
     char password[256];
     int activeStatus; // 0 -> deactivate, 1 -> activate
-
-    // Write transcation history also
-    // char transactionHistory[10][1024];
 };
 
 struct Counter{

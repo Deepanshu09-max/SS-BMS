@@ -9,17 +9,11 @@ char readBuffer[4096], writeBuffer[4096];
 
 void adminMenu(int connectionFD)
 {
-    int flag = 0;
     char password[20];
 label1:
     bzero(writeBuffer, sizeof(writeBuffer));
-    if(flag)
-    {
-        strcat(writeBuffer, "\nInvalid credential^");
-        flag = 0;
-    }
     strcat(writeBuffer, "Enter password: ");
-    write(connectionFD, writeBuffer, strlen(writeBuffer));
+    write(connectionFD, writeBuffer, sizeof(writeBuffer));
 
     bzero(readBuffer, sizeof(readBuffer));
     read(connectionFD, readBuffer, sizeof(readBuffer));
@@ -29,13 +23,17 @@ label1:
     {
         bzero(writeBuffer, sizeof(writeBuffer));
         bzero(readBuffer, sizeof(readBuffer));
-        strcpy(writeBuffer, "\nLogin Successfully^");
-        write(connectionFD, writeBuffer, strlen(writeBuffer));
+        strcpy(writeBuffer, "\n\n Succesfully logged in");
+        write(connectionFD, writeBuffer, sizeof(writeBuffer));
         read(connectionFD, readBuffer, sizeof(readBuffer));
     }
     else
     {
-        flag = 1;
+        bzero(writeBuffer, sizeof(writeBuffer));
+        bzero(readBuffer, sizeof(readBuffer));
+        strcpy(writeBuffer, "\nInvalid credential^");
+        write(connectionFD, writeBuffer, sizeof(writeBuffer));
+        read(connectionFD, readBuffer, sizeof(readBuffer));
         goto label1;
     }
 
@@ -61,7 +59,7 @@ label1:
                     bzero(writeBuffer, sizeof(writeBuffer));
                     bzero(readBuffer, sizeof(readBuffer));
                     strcpy(writeBuffer, "Employee successfully added\n^");
-                    write(connectionFD, writeBuffer, strlen(writeBuffer));
+                    write(connectionFD, writeBuffer, sizeof(writeBuffer));
                     read(connectionFD, readBuffer, sizeof(readBuffer));
                 }
                 break;
@@ -81,13 +79,16 @@ label1:
                 // Manage User Roles
                 manageRole(connectionFD);
                 break;
-            
             case 4:
-                // Change password
-                break;
-            case 5:
                 // Logout
                 return;
+            case 5:
+                bzero(writeBuffer, sizeof(writeBuffer));
+                strcpy(writeBuffer, "Succesfully logged out");
+                write(connectionFD, writeBuffer, sizeof(writeBuffer));
+                return;
+                
+
             default:
                 bzero(writeBuffer, sizeof(writeBuffer));
                 bzero(readBuffer, sizeof(readBuffer));
@@ -158,9 +159,6 @@ int addEmployee(int connectionFD)
         printf("Error in adding employee!\n");
         return 0;
     }
-    else {
-        printf("Employee Added Succesfully \n");
-    }
     
     close(file);
     return 1;
@@ -171,7 +169,7 @@ void modifyCE(int connectionFD, int modifyChoice)
 {
     if(modifyChoice == 1)
     {
-        printf("Admin choose Customer \n");
+        printf("Admin choose 1\n");
         int file = open(CUSPATH, O_CREAT | O_RDWR , 0644);
         if(file == -1)
         {
@@ -371,13 +369,19 @@ void manageRole(int connectionFD)
             
             if(choice == 1)
             {
-                printf("Admin made %d id manager\n", id);
+                printf("Admin made %d manager\n", id);
+                bzero(writeBuffer, sizeof(writeBuffer));
+                strcpy(writeBuffer, "Succesfully made manager");
+                write(connectionFD, writeBuffer, sizeof(writeBuffer));
                 emp.role = 0;            
                 write(file, &emp, sizeof(emp));
             }
             else if(choice == 2)
             {
-                printf("Admin made %d id employee\n", id);
+                printf("Admin made %d employee\n", id);
+                bzero(writeBuffer, sizeof(writeBuffer));
+                strcpy(writeBuffer, "Succesfully made Employee");
+                write(connectionFD, writeBuffer, sizeof(writeBuffer));
                 emp.role = 1;
                 write(file, &emp, sizeof(emp));
             }

@@ -5,14 +5,18 @@
 #include<fcntl.h>
 #include<unistd.h>
 #include<crypt.h>
+#include<semaphore.h>
+#include<netinet/ip.h>
 #include<sys/types.h>
 #include<sys/socket.h>
-#include<netinet/ip.h>
 #include<sys/stat.h>
-#include<sys/types.h>
+#include<sys/sem.h>
+#include<sys/wait.h>
+#include<errno.h>
+#include<signal.h>
 
 // Compile
-// gcc server.c -o server -L/lib/x86_64-linux-gnu/libcrypt.so -lcrypt
+// gcc server.c -o server -L/lib/x86_64-linux-gnu/libcrypt.so -lcrypt -pthread
 
 #define EMPPATH "../Data/employees.txt"
 #define CUSPATH "../Data/customers.txt"
@@ -22,8 +26,8 @@
 #define FEEDPATH "../Data/feedback.txt"
 #define HASHKEY "$6$saltsalt$"
 
-#define MAINMENU "\n===== Login As =====\n1. Customer\n2. Employee\n3. Manager\n4. Admin\n5. Exit\nEnter your choice: "
-#define ADMINMENU "\n===== Admin =====\n1. Add New Bank Employee\n2. Modify Customer/Employee Details\n3. Manage User Roles\n4. Change Password\n5. Logout\nEnter your choice: "
+#define MAINMENU "\n===== Logged in  =====\n1. Customer\n2. Employee\n3. Manager\n4. Admin\n5. Exit\nEnter your choice: "
+#define ADMINMENU "\nxxxxxxxxxxxxxx Welcome back Deepanshu Saini xxxxxxxxxxxxx\n1. Add New Bank Employee\n2. Modify Customer/Employee Details\n3. Manage User Roles\n4. Change Password\n5. Logout\nEnter your choice: "
 #define CUSMENU "\n===== Customer =====\n1. Deposit\n2. Withdraw\n3. View Balance\n4. Apply for a loan\n5. Money Transfer\n6. Change Password\n7. View Transaction\n8. Add Feedback\n9. Logout\nEnter your choice: "
 #define EMPMENU "\n===== Employee =====\n1. Add New Customer\n2. Modify Customer Details\n3. Approve/Reject Loans\n4. View Assigned Loan Applications\n5. View Customer Transactions\n6. Change Password\n7. Logout\n8. Exit\nEnter your choice: "
 #define MNGMENU "\n===== Manager =====\n1. Activate/Deactivate Customer Accounts\n2. Assign Loan Application Processes to Employees\n3. Review Customer Feedback\n4. Change Password\n5. Logout\n6. Exit\nEnter your choice: "
@@ -32,8 +36,13 @@ void employeeMenu(int connectionFD);
 void managerMenu(int connectionFD);
 void adminMenu(int connectionFD);
 void connectionHandler(int connectionFileDescriptor);
-void exitClient(int connectionFD);
+void exitClient(int connectionFD, int id);
+void cleanupSemaphore(int signum);
+void setupSignalHandlers();
+sem_t *initializeSemaphore(int accountNumber);
 
+sem_t *sema;
+char semName[50];
 
 #include "../AllStructures/allStruct.h"
 #include "../Modules/Customer.h"
@@ -154,7 +163,7 @@ void connectionHandler(int connectionFileDescriptor)
                         break;
 
                     case 5:
-                        exitClient(connectionFileDescriptor);
+                        exitClient(connectionFileDescriptor, 0);
                         return;
 
                     default:
@@ -166,10 +175,43 @@ void connectionHandler(int connectionFileDescriptor)
     }
 }
 
-void exitClient(int connectionFileDescriptor)
+void exitClient(int connectionFileDescriptor, int id)
 {
+    snprintf(semName, 50, "/sem_%d", id);
+
+    sem_t *sema = sem_open(semName, 0);
+    if (sema != SEM_FAILED) {
+        sem_post(sema);
+        sem_close(sema); 
+        sem_unlink(semName);    
+    }
+
     bzero(writeBuffer, sizeof(writeBuffer));
     strcpy(writeBuffer, "Client logging out...\n");
     write(connectionFileDescriptor, writeBuffer, sizeof(writeBuffer));
     read(connectionFileDescriptor, readBuffer, sizeof(readBuffer));
+}
+
+// =================== Session Handling =================
+void cleanupSemaphore(int signum) {
+    if (sema != NULL) {
+        sem_post(sema);
+        sem_close(sema);
+        sem_unlink(semName); 
+    }
+    printf("Program interrupted. Semaphore for customer cleaned up.\n");
+    _exit(signum);
+}
+
+sem_t *initializeSemaphore(int id) {
+    snprintf(semName, 50, "/sem_%d", id);
+    return sem_open(semName, O_CREAT, 0644, 1);  // Initialize to 1
+}
+
+void setupSignalHandlers() {
+    signal(SIGINT, cleanupSemaphore); 
+    signal(SIGTERM, cleanupSemaphore); 
+    signal(SIGSEGV, cleanupSemaphore);
+    signal(SIGHUP, cleanupSemaphore);  
+    signal(SIGQUIT, cleanupSemaphore);
 }

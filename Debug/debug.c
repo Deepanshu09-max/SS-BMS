@@ -34,10 +34,10 @@ int main()
     
     // ================ Reading Loan Counter ================ 
     // ct.count = 0;
-    while (fread(&ct, sizeof(ct), 1, f4))
-    {
-        printf("%d\n", ct.count);
-    }
+    // while (fread(&ct, sizeof(ct), 1, f4))
+    // {
+    //     printf("%d\n", ct.count);
+    // }
 
     fclose(f4);    
     
